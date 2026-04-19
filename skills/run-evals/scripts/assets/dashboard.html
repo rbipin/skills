@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Benchmark Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:        #050a14;
+    --surface:   #0c1524;
+    --card:      #101d30;
+    --border:    #1a3050;
+    --accent1:   #00d4ff;
+    --accent2:   #7c3aed;
+    --accent3:   #10b981;
+    --danger:    #ef4444;
+    --warn:      #f59e0b;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --glow1:     rgba(0,212,255,0.15);
+    --glow2:     rgba(124,58,237,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  header {
+    position: relative; z-index: 1;
+    padding: 2rem 2.5rem 1.2rem;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(0,212,255,0.06) 0%, transparent 100%);
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+  }
+
+  .header-left h1 {
+    font-size: 1.55rem; font-weight: 700; letter-spacing: .04em;
+    background: linear-gradient(90deg, var(--accent1), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header-left .sub {
+    font-size: .78rem; color: var(--muted); margin-top: .25rem; letter-spacing: .06em; text-transform: uppercase;
+  }
+  .header-meta {
+    display: flex; gap: 1.2rem; flex-wrap: wrap; align-items: center;
+  }
+  .meta-pill {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 20px; padding: .3rem .85rem;
+    font-size: .72rem; color: var(--muted); letter-spacing: .05em; text-transform: uppercase;
+  }
+  .meta-pill span { color: var(--accent1); font-weight: 600; }
+
+  .picker {
+    display: flex; gap: .6rem; align-items: center;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 20px; padding: .35rem .6rem .35rem .85rem;
+  }
+  .picker label {
+    font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em;
+  }
+  .picker select {
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border); border-radius: 14px;
+    padding: .25rem .6rem; font-size: .78rem; min-width: 140px;
+    outline: none; cursor: pointer;
+  }
+  .picker select:focus { border-color: var(--accent1); }
+
+  main {
+    position: relative; z-index: 1;
+    padding: 1.8rem 2.5rem 3rem;
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: repeat(12, 1fr);
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.4rem 1.6rem;
+    position: relative; overflow: hidden;
+  }
+  .card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--accent1), var(--accent2));
+    opacity: .5;
+  }
+  .card-title {
+    font-size: .7rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .1em; color: var(--muted); margin-bottom: 1rem;
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .card-title .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent1); box-shadow: 0 0 6px var(--accent1);
+  }
+
+  .kpi-grid {
+    grid-column: span 12;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 1rem;
+  }
+  .kpi {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.1rem 1.3rem;
+    position: relative; overflow: hidden;
+  }
+  .kpi::after {
+    content: ''; position: absolute; bottom: -20px; right: -20px;
+    width: 80px; height: 80px; border-radius: 50%;
+    background: var(--glow1); filter: blur(20px);
+  }
+  .kpi-label { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .kpi-value {
+    font-size: 2rem; font-weight: 700; margin: .3rem 0 .1rem;
+    background: linear-gradient(135deg, var(--accent1), #fff);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    line-height: 1;
+  }
+  .kpi-delta {
+    font-size: .72rem; display: flex; align-items: center; gap: .3rem;
+  }
+  .kpi-delta.up   { color: var(--accent3); }
+  .kpi-delta.down { color: var(--danger); }
+  .kpi-delta.warn { color: var(--warn); }
+
+  .chart-passrate   { grid-column: span 4; }
+  .chart-passrate2  { grid-column: span 4; }
+  .chart-tokens     { grid-column: span 4; }
+  .chart-assertions { grid-column: span 7; }
+  .chart-radar      { grid-column: span 5; }
+  .chart-timing     { grid-column: span 6; }
+  .chart-cache      { grid-column: span 6; }
+  .compare-card     { grid-column: span 12; }
+
+  canvas { width: 100% !important; }
+
+  .insights { grid-column: span 12; }
+  .insight-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;
+  }
+  .insight-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    font-size: .8rem; line-height: 1.55; color: #94a3b8;
+  }
+  .insight-item strong { color: var(--accent1); display: block; margin-bottom: .35rem; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; }
+  .insight-item.warn  { border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.05); }
+  .insight-item.warn strong { color: var(--warn); }
+
+  .assertion-table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+  .assertion-table th {
+    text-align: left; padding: .6rem .8rem;
+    font-size: .65rem; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--muted); border-bottom: 1px solid var(--border);
+  }
+  .assertion-table td { padding: .65rem .8rem; border-bottom: 1px solid rgba(26,48,80,0.5); vertical-align: middle; }
+  .assertion-table tr:last-child td { border-bottom: none; }
+  .assertion-table tr:hover td { background: rgba(0,212,255,0.03); }
+  .badge {
+    display: inline-flex; align-items: center; gap: .3rem;
+    padding: .2rem .6rem; border-radius: 20px; font-size: .68rem; font-weight: 600;
+  }
+  .badge.pass { background: rgba(16,185,129,0.15); color: var(--accent3); border: 1px solid rgba(16,185,129,0.3); }
+  .badge.fail { background: rgba(239,68,68,0.12); color: var(--danger);  border: 1px solid rgba(239,68,68,0.25); }
+
+  .compare-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  .compare-table th, .compare-table td { padding: .55rem .8rem; border-bottom: 1px solid rgba(26,48,80,0.5); text-align: right; }
+  .compare-table th:first-child, .compare-table td:first-child { text-align: left; color: var(--muted); font-weight: 500; }
+  .compare-table th { font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .delta-up    { color: var(--accent3); }
+  .delta-down  { color: var(--danger); }
+  .delta-flat  { color: var(--muted); }
+
+  .status {
+    grid-column: span 12;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.5rem; text-align: center; color: var(--muted);
+    font-size: .9rem;
+  }
+  .status.error { border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.05); color: var(--danger); }
+  .status code { background: var(--surface); padding: .1rem .4rem; border-radius: 4px; color: var(--accent1); }
+
+  @keyframes pulse-glow {
+    0%,100% { box-shadow: 0 0 4px rgba(0,212,255,0.3); }
+    50%      { box-shadow: 0 0 12px rgba(0,212,255,0.7); }
+  }
+  .kpi { animation: pulse-glow 4s ease-in-out infinite; }
+
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; padding: 1rem; }
+    .chart-passrate,.chart-passrate2,.chart-tokens,
+    .chart-assertions,.chart-radar,.chart-timing,.chart-cache,
+    .insights,.compare-card { grid-column: span 1; }
+    header { padding: 1.2rem 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>⚡ Benchmark Dashboard</h1>
+    <div class="sub" id="subtitle">Loading…</div>
+  </div>
+  <div class="header-meta" id="header-meta">
+    <div class="picker">
+      <label for="iter-select">Iteration</label>
+      <select id="iter-select"></select>
+    </div>
+    <div class="picker">
+      <label for="compare-select">Compare to</label>
+      <select id="compare-select"><option value="">(none)</option></select>
+    </div>
+  </div>
+</header>
+
+<main id="main"></main>
+
+<script>
+const C = Chart;
+const accent1 = '#00d4ff', accent2 = '#7c3aed', accent3 = '#10b981';
+const danger  = '#ef4444', warn    = '#f59e0b';
+
+const defaults = C.defaults;
+defaults.color = '#64748b';
+defaults.borderColor = '#1a3050';
+defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+defaults.plugins.legend.labels.color = '#94a3b8';
+defaults.plugins.legend.labels.boxWidth = 12;
+defaults.plugins.tooltip.backgroundColor = '#0c1524';
+defaults.plugins.tooltip.borderColor = '#1a3050';
+defaults.plugins.tooltip.borderWidth = 1;
+defaults.plugins.tooltip.titleColor = '#e2e8f0';
+defaults.plugins.tooltip.bodyColor = '#94a3b8';
+
+const CHART_REGISTRY = new Map();
+function resetCharts() {
+  for (const ch of CHART_REGISTRY.values()) { try { ch.destroy(); } catch (_) {} }
+  CHART_REGISTRY.clear();
+}
+function registerChart(id, chart) { CHART_REGISTRY.set(id, chart); }
+
+function fmtInt(n) {
+  if (n == null || isNaN(n)) return '—';
+  n = Math.round(Number(n));
+  return n.toLocaleString();
+}
+function fmtFloat(n, digits=1) {
+  if (n == null || isNaN(n)) return '—';
+  return Number(n).toFixed(digits);
+}
+function deltaClass(d) {
+  if (d == null || isNaN(d) || Number(d) === 0) return 'delta-flat';
+  return Number(d) > 0 ? 'delta-up' : 'delta-down';
+}
+function deltaArrow(d) {
+  if (d == null || isNaN(d) || Number(d) === 0) return '=';
+  return Number(d) > 0 ? '▲' : '▼';
+}
+function deltaSigned(d, digits=1) {
+  if (d == null || isNaN(d)) return '—';
+  const v = Number(d);
+  return (v >= 0 ? '+' : '') + v.toFixed(digits);
+}
+
+function deltaColor(dpp) {
+  if (dpp >= 20) return 'up';
+  if (dpp >= 0)  return 'warn';
+  return 'down';
+}
+
+function radarScores(ws, wos) {
+  const skillPr = (ws.pass_rate.combined ?? ws.pass_rate.mean ?? 0) * 100;
+  const basePr  = (wos.pass_rate.combined ?? wos.pass_rate.mean ?? 0) * 100;
+  const skillEi = ws.tokens.effective_input_mean || 1;
+  const baseEi  = wos.tokens.effective_input_mean || 1;
+  const maxEi   = Math.max(skillEi, baseEi);
+  const skillTok = Math.round((1 - skillEi / maxEi) * 1000) / 10;
+  const baseTok  = Math.round((1 - baseEi / maxEi) * 1000) / 10;
+  const skillCache = ws.tokens.cache_efficiency_mean_pct || 0;
+  const baseCache  = wos.tokens.cache_efficiency_mean_pct || 0;
+  const skillApi = ws.api_calls_mean || 0;
+  const baseApi  = wos.api_calls_mean || 0;
+  const maxApi   = Math.max(skillApi, baseApi) || 1;
+  const skillApiEff = Math.round(((1 - skillApi / maxApi) * 50 + 50) * 10) / 10;
+  const baseApiEff  = Math.round(((1 - baseApi / maxApi) * 50 + 50) * 10) / 10;
+  const skillT = ws.time_seconds.mean;
+  const baseT  = wos.time_seconds.mean;
+  const maxT   = Math.max(skillT, baseT) || 1;
+  const skillSpeed = Math.round((1 - skillT / maxT) * 1000) / 10;
+  const baseSpeed  = Math.round((1 - baseT / maxT)  * 1000) / 10;
+  return {
+    labels: ['Pass Rate', 'Token Efficiency', 'Cache Efficiency', 'API Efficiency', 'Speed (inv)'],
+    with_skill:    [Math.round(skillPr*10)/10, skillTok, Math.round(skillCache*10)/10, skillApiEff, skillSpeed],
+    without_skill: [Math.round(basePr*10)/10,  baseTok,  Math.round(baseCache*10)/10,  baseApiEff,  baseSpeed],
+  };
+}
+
+function buildChartData(evals, ws, wos) {
+  const evalLabels = [];
+  const effectiveInput = [], cacheRead = [], outputTokens = [];
+  const apiDuration = [], overhead = [];
+  const cacheEff = [], cacheEffColors = [], cacheEffBorders = [];
+  evals.forEach((e, i) => {
+    const alpha = i === 0 ? 'bb' : '77';
+    [['with_skill', accent1], ['without_skill', accent2]].forEach(([cond, color]) => {
+      evalLabels.push(`E${e.id} ${cond === 'with_skill' ? 'With Skill' : 'Baseline'}`);
+      const t = e[cond].tokens;
+      const dur = e[cond].api_duration_seconds || 0;
+      const tot = e[cond].time_seconds || 0;
+      effectiveInput.push(t.effective_input || 0);
+      cacheRead.push(t.cache_read || 0);
+      outputTokens.push(t.output || 0);
+      apiDuration.push(Math.round(dur * 1000) / 1000);
+      overhead.push(Math.round((tot - dur) * 1000) / 1000);
+      cacheEff.push(t.cache_efficiency_pct || 0);
+      cacheEffColors.push(color + alpha);
+      cacheEffBorders.push(color);
+    });
+  });
+  return {
+    donut1_passed: ws.pass_rate.total_passed || 0,
+    donut1_failed: ws.pass_rate.total_failed || 0,
+    donut2_passed: wos.pass_rate.total_passed || 0,
+    donut2_failed: wos.pass_rate.total_failed || 0,
+    eval_labels: evalLabels,
+    effective_input: effectiveInput,
+    cache_read: cacheRead,
+    output_tokens: outputTokens,
+    api_duration: apiDuration,
+    overhead: overhead,
+    cache_efficiency: cacheEff,
+    cache_eff_colors: cacheEffColors,
+    cache_eff_borders: cacheEffBorders,
+    radar: radarScores(ws, wos),
+  };
+}
+
+function buildContext(data) {
+  const rs = data.run_summary;
+  const ws = rs.with_skill, wos = rs.without_skill, delta = rs.delta;
+  const evals = data.evals;
+  const insights = data.insights || {};
+  const skillPrC = ws.pass_rate.combined ?? ws.pass_rate.mean ?? 0;
+  const basePrC  = wos.pass_rate.combined ?? wos.pass_rate.mean ?? 0;
+  const deltaC   = delta.pass_rate_combined ?? delta.pass_rate_mean ?? 0;
+  const skillPassPct = Math.round(skillPrC * 1000) / 10;
+  const basePassPct  = Math.round(basePrC  * 1000) / 10;
+  const deltaPp      = Math.round(deltaC   * 1000) / 10;
+  const skillTimeMean = ws.time_seconds.mean;
+  const baseTimeMean  = wos.time_seconds.mean;
+  let generatedDate;
+  try {
+    const gen = new Date(data.generated_at);
+    generatedDate = isNaN(gen) ? data.generated_at.slice(0,10) : gen.toISOString().slice(0,10);
+  } catch (_) { generatedDate = (data.generated_at||'').slice(0,10); }
+
+  const evalMap = {};
+  evals.forEach(e => { evalMap[e.id] = e; });
+  const assertionGroups = [];
+  let currentGroup = null, currentId = null;
+  (data.assertion_comparison || []).forEach(row => {
+    if (row.eval !== currentId) {
+      if (currentGroup) assertionGroups.push(currentGroup);
+      const ev = evalMap[row.eval] || {};
+      const count = ev.assertions_total ?? '?';
+      const name  = ev.name || `eval-${row.eval}`;
+      currentGroup = { label: `Eval ${row.eval} · ${name} (${count} assertions)`, rows: [] };
+      currentId = row.eval;
+    }
+    currentGroup.rows.push(row);
+  });
+  if (currentGroup) assertionGroups.push(currentGroup);
+
+  return {
+    iteration: data.iteration,
+    model: data.model,
+    host_agent: data.host_agent || 'unknown',
+    host_agent_version: data.host_agent_version,
+    generated_date: generatedDate,
+    num_evals: evals.length,
+    num_runs: evals.length * 2,
+    total_assertions: ws.pass_rate.total_assertions || 0,
+    skill_pass_pct: skillPassPct,
+    base_pass_pct:  basePassPct,
+    delta_pp: deltaPp,
+    delta_color: deltaColor(deltaPp),
+    base_failed: wos.pass_rate.total_failed || 0,
+    skill_api_mean: ws.api_calls_mean || 0,
+    base_api_mean:  wos.api_calls_mean || 0,
+    skill_time_mean: skillTimeMean,
+    base_time_mean:  baseTimeMean,
+    delta_time: Math.round(skillTimeMean - baseTimeMean),
+    skill_cache_pct: Math.round((ws.tokens.cache_efficiency_mean_pct || 0) * 10) / 10,
+    base_cache_pct:  Math.round((wos.tokens.cache_efficiency_mean_pct || 0) * 10) / 10,
+    insights,
+    assertion_groups: assertionGroups,
+    bench_data: buildChartData(evals, ws, wos),
+  };
+}
+
+// ── Rendering ──────────────────────────────────────────────────────────────
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;',
+  })[c]);
+}
+
+function renderHeader(ctx) {
+  const sub = `eval · Iteration ${escapeHtml(ctx.iteration)} · ${ctx.num_evals} Evals`;
+  document.getElementById('subtitle').textContent = sub;
+  const pills = `
+    <div class="meta-pill">Host: <span>${escapeHtml((ctx.host_agent || 'unknown').toUpperCase())}${ctx.host_agent_version ? ' ' + escapeHtml(ctx.host_agent_version) : ''}</span></div>
+    <div class="meta-pill">Model: <span>${escapeHtml(ctx.model || '—')}</span></div>
+    <div class="meta-pill">Generated: <span>${escapeHtml(ctx.generated_date)}</span></div>
+    <div class="meta-pill">Assertions: <span>${ctx.total_assertions}</span></div>
+    <div class="meta-pill">Evals: <span>${ctx.num_evals}</span></div>
+    <div class="meta-pill">Runs: <span>${ctx.num_runs}</span></div>
+  `;
+  const metaEl = document.getElementById('header-meta');
+  // Keep the two picker divs (first/last children), replace only the pills.
+  [...metaEl.querySelectorAll('.meta-pill')].forEach(n => n.remove());
+  metaEl.insertAdjacentHTML('afterbegin', pills);
+}
+
+function renderKPIs(ctx) {
+  const apiCls = ctx.skill_api_mean < ctx.base_api_mean ? 'up' :
+                 ctx.skill_api_mean > ctx.base_api_mean ? 'down' : 'warn';
+  const apiArrow = ctx.skill_api_mean === ctx.base_api_mean ? '=' :
+                   ctx.skill_api_mean < ctx.base_api_mean ? '▼' : '▲';
+  const cacheCls = ctx.skill_cache_pct >= ctx.base_cache_pct ? 'up' : 'down';
+  return `
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="kpi-label">Skill Pass Rate (mean)</div>
+        <div class="kpi-value">${ctx.skill_pass_pct}%</div>
+        <div class="kpi-delta ${ctx.delta_color}">${ctx.delta_pp >= 0 ? '▲' : '▼'} ${ctx.delta_pp >= 0 ? '+' : ''}${ctx.delta_pp}pp vs baseline mean</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Baseline Pass Rate (mean)</div>
+        <div class="kpi-value" style="background:linear-gradient(135deg,var(--danger),#f97316);-webkit-background-clip:text;">${ctx.base_pass_pct}%</div>
+        <div class="kpi-delta down">${ctx.base_failed} of ${ctx.total_assertions} assertions failed</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Total Assertions</div>
+        <div class="kpi-value" style="background:linear-gradient(135deg,var(--accent3),var(--accent1));-webkit-background-clip:text;">${ctx.total_assertions}</div>
+        <div class="kpi-delta up">across ${ctx.num_evals} evals</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">API Calls (Skill avg)</div>
+        <div class="kpi-value">${ctx.skill_api_mean}</div>
+        <div class="kpi-delta ${apiCls}">${apiArrow} baseline avg (${ctx.base_api_mean})</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Wall-Clock Time (Skill mean)</div>
+        <div class="kpi-value" style="background:linear-gradient(135deg,var(--warn),#f97316);-webkit-background-clip:text;">${Math.round(ctx.skill_time_mean)}s</div>
+        <div class="kpi-delta warn">${ctx.delta_time >= 0 ? '▲ +' : '▼ '}${ctx.delta_time}s vs baseline mean (${Math.round(ctx.base_time_mean)}s)</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Cache Efficiency (Skill mean)</div>
+        <div class="kpi-value">${ctx.skill_cache_pct}%</div>
+        <div class="kpi-delta ${cacheCls}">vs ${ctx.base_cache_pct}% baseline mean</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderAssertionTable(ctx) {
+  const groups = ctx.assertion_groups.map(g => {
+    const rows = g.rows.map(r => `
+      <tr>
+        <td>${escapeHtml(r.assertion)}</td>
+        <td>${r.with_skill ? '<span class="badge pass">✓ Pass</span>' : '<span class="badge fail">✗ Fail</span>'}</td>
+        <td>${r.without_skill ? '<span class="badge pass">✓ Pass</span>' : '<span class="badge fail">✗ Fail</span>'}</td>
+      </tr>`).join('');
+    return `
+      <tr><td colspan="3" style="padding:.5rem .8rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--accent1);background:rgba(0,212,255,0.05);border-bottom:1px solid var(--border);">${escapeHtml(g.label)}</td></tr>
+      ${rows}
+    `;
+  }).join('');
+  return `
+    <div class="card chart-assertions">
+      <div class="card-title"><span class="dot"></span>Assertion Breakdown</div>
+      <table class="assertion-table">
+        <thead><tr><th style="width:60%">Assertion</th><th>With Skill</th><th>Without Skill</th></tr></thead>
+        <tbody>${groups}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderInsights(ctx) {
+  const i = ctx.insights || {};
+  const items = [];
+  if (i.skill_improvement)   items.push(['🚀 Skill Improvement', i.skill_improvement, '']);
+  if (i.shared_failure)      items.push(['⚠️ Persistent Shared Failure', i.shared_failure, 'warn']);
+  if (i.token_tradeoff)      items.push(['📊 Token Tradeoff', i.token_tradeoff, 'warn']);
+  if (i.wall_clock_tradeoff) items.push(['⏱️ Wall-Clock Tradeoff', i.wall_clock_tradeoff, '']);
+  if (i.cache_efficiency)    items.push(['📦 Cache Efficiency', i.cache_efficiency, '']);
+  if (items.length === 0) return '';
+  const html = items.map(([title, body, cls]) =>
+    `<div class="insight-item ${cls}"><strong>${escapeHtml(title)}</strong>${escapeHtml(body)}</div>`
+  ).join('');
+  return `
+    <div class="card insights">
+      <div class="card-title"><span class="dot" style="background:var(--accent2);box-shadow:0 0 6px var(--accent2)"></span>Insights</div>
+      <div class="insight-grid">${html}</div>
+    </div>
+  `;
+}
+
+function renderCompareCard(a, b) {
+  // a = selected ctx, b = baseline ctx
+  const rows = [
+    ['Skill Pass Rate',     a.skill_pass_pct,    b.skill_pass_pct,    'pp'],
+    ['Baseline Pass Rate',  a.base_pass_pct,     b.base_pass_pct,     'pp'],
+    ['Delta vs Baseline',   a.delta_pp,          b.delta_pp,          'pp'],
+    ['Skill Wall-Clock (s)', Math.round(a.skill_time_mean), Math.round(b.skill_time_mean), 's'],
+    ['Skill Cache Eff. %',  a.skill_cache_pct,   b.skill_cache_pct,   'pp'],
+    ['Skill API Calls avg', a.skill_api_mean,    b.skill_api_mean,    ''],
+    ['Total Assertions',    a.total_assertions,  b.total_assertions,  ''],
+  ];
+  const body = rows.map(([label, av, bv, unit]) => {
+    const delta = (typeof av === 'number' && typeof bv === 'number') ? (av - bv) : null;
+    const dCls  = deltaClass(delta);
+    const dTxt  = delta == null ? '—' : `${deltaArrow(delta)} ${deltaSigned(delta, unit === 'pp' ? 1 : 0)}${unit}`;
+    return `<tr>
+      <td>${escapeHtml(label)}</td>
+      <td>${fmtFloat(av, unit === 'pp' ? 1 : 0)}${unit ? ' '+unit.replace('pp','%') : ''}</td>
+      <td>${fmtFloat(bv, unit === 'pp' ? 1 : 0)}${unit ? ' '+unit.replace('pp','%') : ''}</td>
+      <td class="${dCls}">${dTxt}</td>
+    </tr>`;
+  }).join('');
+  return `
+    <div class="card compare-card">
+      <div class="card-title"><span class="dot" style="background:var(--warn);box-shadow:0 0 6px var(--warn)"></span>Compare · Iteration ${escapeHtml(a.iteration)} vs Iteration ${escapeHtml(b.iteration)}</div>
+      <table class="compare-table">
+        <thead><tr><th>Metric</th><th>Iter ${escapeHtml(a.iteration)}</th><th>Iter ${escapeHtml(b.iteration)}</th><th>Δ</th></tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderCharts(ctx) {
+  const bd = ctx.bench_data;
+  registerChart('donut1', new C(document.getElementById('donut1'), {
+    type: 'doughnut',
+    data: {
+      labels: [`Passed (${bd.donut1_passed})`, `Failed (${bd.donut1_failed})`],
+      datasets: [{ data: [bd.donut1_passed, bd.donut1_failed], backgroundColor: [accent3, danger],
+        borderColor: '#101d30', borderWidth: 3, hoverOffset: 6 }]
+    },
+    options: { cutout: '72%', plugins: { legend: { position: 'bottom' },
+      tooltip: { callbacks: { label: c => ' ' + c.label } } } }
+  }));
+
+  registerChart('donut2', new C(document.getElementById('donut2'), {
+    type: 'doughnut',
+    data: {
+      labels: [`Passed (${bd.donut2_passed})`, `Failed (${bd.donut2_failed})`],
+      datasets: [{ data: [bd.donut2_passed, bd.donut2_failed], backgroundColor: [accent2, danger],
+        borderColor: '#101d30', borderWidth: 3, hoverOffset: 6 }]
+    },
+    options: { cutout: '72%', plugins: { legend: { position: 'bottom' },
+      tooltip: { callbacks: { label: c => ' ' + c.label } } } }
+  }));
+
+  registerChart('tokenBar', new C(document.getElementById('tokenBar'), {
+    type: 'bar',
+    data: { labels: bd.eval_labels, datasets: [
+      { label: 'Effective Input', data: bd.effective_input, backgroundColor: accent1+'99', borderColor: accent1, borderWidth: 1 },
+      { label: 'Cache Read',      data: bd.cache_read,      backgroundColor: accent2+'99', borderColor: accent2, borderWidth: 1 },
+      { label: 'Output',          data: bd.output_tokens,   backgroundColor: accent3+'99', borderColor: accent3, borderWidth: 1 },
+    ]},
+    options: {
+      responsive: true,
+      scales: {
+        x: { stacked: true, grid: { color: '#1a3050' }, ticks: { color: '#64748b' } },
+        y: { stacked: true, grid: { color: '#1a3050' },
+          ticks: { color: '#64748b', callback: v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v } }
+      },
+      plugins: { legend: { position: 'bottom' } }
+    }
+  }));
+
+  registerChart('timingBar', new C(document.getElementById('timingBar'), {
+    type: 'bar',
+    data: { labels: bd.eval_labels, datasets: [
+      { label: 'API Duration (s)',        data: bd.api_duration, backgroundColor: accent3+'bb', borderColor: accent3, borderWidth: 1 },
+      { label: 'Overhead / Integration (s)', data: bd.overhead,   backgroundColor: warn+'bb',    borderColor: warn,    borderWidth: 1 },
+    ]},
+    options: {
+      indexAxis: 'y', responsive: true,
+      scales: {
+        x: { stacked: true, grid: { color: '#1a3050' }, ticks: { color: '#64748b', callback: v => v+'s' } },
+        y: { stacked: true, grid: { color: '#1a3050' }, ticks: { color: '#64748b' } },
+      },
+      plugins: { legend: { position: 'bottom' } }
+    }
+  }));
+
+  registerChart('cacheBar', new C(document.getElementById('cacheBar'), {
+    type: 'bar',
+    data: { labels: bd.eval_labels, datasets: [
+      { label: 'Cache Efficiency %', data: bd.cache_efficiency,
+        backgroundColor: bd.cache_eff_colors, borderColor: bd.cache_eff_borders, borderWidth: 1 },
+    ]},
+    options: {
+      responsive: true,
+      scales: {
+        x: { grid: { color: '#1a3050' }, ticks: { color: '#64748b' } },
+        y: { min: 0, max: 100, grid: { color: '#1a3050' },
+          ticks: { color: '#64748b', callback: v => v+'%' } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  }));
+
+  registerChart('radar', new C(document.getElementById('radar'), {
+    type: 'radar',
+    data: { labels: bd.radar.labels, datasets: [
+      { label: 'With Skill',    data: bd.radar.with_skill,
+        backgroundColor: accent1+'22', borderColor: accent1, borderWidth: 2,
+        pointBackgroundColor: accent1, pointRadius: 4 },
+      { label: 'Without Skill', data: bd.radar.without_skill,
+        backgroundColor: accent2+'22', borderColor: accent2, borderWidth: 2,
+        pointBackgroundColor: accent2, pointRadius: 4 },
+    ]},
+    options: {
+      responsive: true,
+      scales: {
+        r: { min: 0, max: 100, grid: { color: '#1a3050' }, angleLines: { color: '#1a3050' },
+          ticks: { display: false }, pointLabels: { color: '#94a3b8', font: { size: 10 } } }
+      },
+      plugins: { legend: { position: 'bottom' } }
+    }
+  }));
+}
+
+function renderStatus(msg, isError=false) {
+  const main = document.getElementById('main');
+  main.innerHTML = `<div class="status ${isError ? 'error' : ''}">${msg}</div>`;
+}
+
+function renderDashboard(ctx, compareCtx) {
+  resetCharts();
+  const main = document.getElementById('main');
+  const compareCard = compareCtx ? renderCompareCard(ctx, compareCtx) : '';
+  main.innerHTML = `
+    ${compareCard}
+    ${renderKPIs(ctx)}
+    <div class="card chart-passrate">
+      <div class="card-title"><span class="dot"></span>Pass Rate — With Skill</div>
+      <canvas id="donut1" height="200"></canvas>
+    </div>
+    <div class="card chart-passrate2">
+      <div class="card-title"><span class="dot" style="background:var(--accent2);box-shadow:0 0 6px var(--accent2)"></span>Pass Rate — Without Skill</div>
+      <canvas id="donut2" height="200"></canvas>
+    </div>
+    <div class="card chart-tokens">
+      <div class="card-title"><span class="dot" style="background:var(--accent3);box-shadow:0 0 6px var(--accent3)"></span>Token Distribution</div>
+      <canvas id="tokenBar" height="200"></canvas>
+    </div>
+    ${renderAssertionTable(ctx)}
+    <div class="card chart-radar">
+      <div class="card-title"><span class="dot" style="background:var(--accent2);box-shadow:0 0 6px var(--accent2)"></span>Capability Radar</div>
+      <canvas id="radar" height="260"></canvas>
+    </div>
+    <div class="card chart-timing">
+      <div class="card-title"><span class="dot" style="background:var(--warn);box-shadow:0 0 6px var(--warn)"></span>Timing Breakdown (seconds)</div>
+      <canvas id="timingBar" height="200"></canvas>
+    </div>
+    <div class="card chart-cache">
+      <div class="card-title"><span class="dot" style="background:var(--accent3);box-shadow:0 0 6px var(--accent3)"></span>Cache vs Effective Input Tokens</div>
+      <canvas id="cacheBar" height="200"></canvas>
+    </div>
+    ${renderInsights(ctx)}
+  `;
+  renderHeader(ctx);
+  renderCharts(ctx);
+}
+
+// ── Loading ────────────────────────────────────────────────────────────────
+
+async function fetchJson(path) {
+  const res = await fetch(path, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText} for ${path}`);
+  return res.json();
+}
+
+const BENCH_CACHE = new Map();
+async function loadBenchmark(path) {
+  if (BENCH_CACHE.has(path)) return BENCH_CACHE.get(path);
+  const data = await fetchJson(path);
+  BENCH_CACHE.set(path, data);
+  return data;
+}
+
+async function onSelectionChange() {
+  const iterSel = document.getElementById('iter-select');
+  const cmpSel  = document.getElementById('compare-select');
+  const path    = iterSel.value;
+  const cmpPath = cmpSel.value || '';
+  if (!path) { renderStatus('Select an iteration to view benchmark results.'); return; }
+  try {
+    const primary = await loadBenchmark(path);
+    const primaryCtx = buildContext(primary);
+    let cmpCtx = null;
+    if (cmpPath && cmpPath !== path) {
+      const cmpData = await loadBenchmark(cmpPath);
+      cmpCtx = buildContext(cmpData);
+    }
+    renderDashboard(primaryCtx, cmpCtx);
+  } catch (e) {
+    renderStatus(`Failed to load benchmark: ${escapeHtml(e.message)}`, true);
+  }
+}
+
+async function init() {
+  const iterSel = document.getElementById('iter-select');
+  const cmpSel  = document.getElementById('compare-select');
+  iterSel.addEventListener('change', onSelectionChange);
+  cmpSel.addEventListener('change', onSelectionChange);
+
+  try {
+    const manifest = await fetchJson('./iterations.json');
+    const items = manifest.iterations || [];
+    if (items.length === 0) {
+      renderStatus('No iterations found. Run <code>compile_benchmark.py</code> then <code>refresh_dashboard.py</code> to populate this workspace.');
+      return;
+    }
+    const opts = items.map(it => `<option value="${escapeHtml(it.path)}">${escapeHtml(it.id)}</option>`).join('');
+    iterSel.innerHTML = opts;
+    cmpSel.innerHTML  = '<option value="">(none)</option>' + opts;
+    iterSel.value = items[0].path;
+    await onSelectionChange();
+  } catch (e) {
+    const isFileProto = location.protocol === 'file:';
+    const hint = isFileProto
+      ? 'Browsers block <code>fetch()</code> on <code>file://</code> URLs. From this folder run:<br><code>python -m http.server 8000</code><br>then open <code>http://localhost:8000/dashboard.html</code>.'
+      : `Failed to load <code>iterations.json</code>: ${escapeHtml(e.message)}`;
+    renderStatus(hint, true);
+  }
+}
+
+init();
+</script>
+</body>
+</html>

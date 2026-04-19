@@ -1,0 +1,67 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Canonical timing.json",
+    "description": "Host-agnostic session metrics written by scripts/capture_metrics.py.",
+    "type": "object",
+    "required": [
+        "host_agent",
+        "model",
+        "duration_seconds",
+        "api_duration_ms",
+        "premium_requests",
+        "tokens",
+        "model_breakdown"
+    ],
+    "properties": {
+        "host_agent": {
+            "type": "string",
+            "enum": ["copilot", "claude", "codex"]
+        },
+        "host_agent_version": {"type": ["string", "null"]},
+        "session_id": {"type": ["string", "null"]},
+        "model": {"type": "string"},
+        "started": {"type": "string"},
+        "ended": {"type": "string"},
+        "duration_seconds": {"type": "number", "minimum": 0},
+        "api_duration_ms": {"type": "integer", "minimum": 0},
+        "premium_requests": {"type": "integer", "minimum": 0},
+        "tokens": {
+            "type": "object",
+            "required": ["input", "output", "total", "cache_read"],
+            "properties": {
+                "input": {"type": "integer"},
+                "output": {"type": "integer"},
+                "total": {"type": "integer"},
+                "cache_read": {"type": "integer"},
+                "cache_write": {"type": "integer"},
+                "reasoning": {"type": "integer"},
+                "context_window_used": {"type": "integer"},
+                "context_window_max": {"type": ["integer", "null"]},
+                "context_window_used_pct": {"type": ["number", "null"]}
+            }
+        },
+        "token_breakdown": {
+            "type": "object",
+            "properties": {
+                "system_prompt": {"type": "integer"},
+                "tool_definitions": {"type": "integer"},
+                "conversation": {"type": "integer"}
+            }
+        },
+        "model_breakdown": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "api_calls": {"type": "integer"},
+                    "premium_cost": {"type": "integer"},
+                    "input_tokens": {"type": "integer"},
+                    "output_tokens": {"type": "integer"},
+                    "cache_read_tokens": {"type": "integer"},
+                    "cache_write_tokens": {"type": "integer"},
+                    "reasoning_tokens": {"type": "integer"}
+                }
+            }
+        }
+    }
+}

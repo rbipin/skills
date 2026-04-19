@@ -2,14 +2,20 @@
 
 ## Workspace Overview
 
-This repository contains agent skill definitions under the `skills/` directory. Each skill lives in its own subfolder and is described by a `SKILL.md` file.
+This repository has two parts:
 
-Currently, the repository contains:
+### 1. Skill definitions (`skills/`)
+Agent skill definitions, each in its own subfolder with a `SKILL.md` file.
+
+Currently contains:
 - `skills/dotnet-code-review/SKILL.md`
 - `skills/dotnet-developer/SKILL.md`
 - `skills/dotnet-version-checker/SKILL.md`
 - `skills/write-skill/SKILL.md`
 - `skills/technical-deep-dive/SKILL.md`
+
+### 2. skillup CLI tool (`skillup/`)
+A cross-platform Bun CLI tool that fetches and installs skills from GitHub repositories. See `skillup/AGENTS.md` for full details on working with that sub-project.
 
 The top-level `README.md` is minimal and does not define build or test commands.
 
@@ -57,7 +63,8 @@ When asked to update an existing skill:
 
 ## Notes
 
-- There is no build or test automation described in this workspace, so focus on the skill documentation itself
-- Any information written in this repository should be grounded in facts and include citation(s) or reference(s) whenever possible
+- For skill definition work: no build or test automation — focus on the `SKILL.md` documentation itself
+- For `skillup/` CLI work: see `skillup/AGENTS.md` — it has its own build (`bun run build`) and test (`bun test tests/`) commands
+- Any information written in skill definitions should be grounded in facts and include citation(s) or reference(s) whenever possible
 - If user requests require broader repo changes, keep the change minimal and aligned with the skill definition pattern
 - Use the `.github/copilot-instructions.md` file as the primary workspace bootstrap document

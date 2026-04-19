@@ -1,0 +1,9 @@
+repos:
+  - repo: 'github/awesome-copilot'
+    branch: 'main'
+skillDirs:
+  - 'skills'
+  - '.github/skills'
+  - '.claude/skills'
+  - '.agents/skills'
+outputDir: '.agents/skills'
